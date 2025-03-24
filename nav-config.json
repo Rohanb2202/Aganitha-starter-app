@@ -1,0 +1,24 @@
+{    "appName": "Aganitha",
+    "logoUrl": "https://www.aganitha.ai/wp-content/uploads/2023/05/aganitha-logo.png",
+    "navigation": [
+      {
+        "label": "Home",
+        "path": "#hero"    
+      },
+      {
+        "label": "About",
+        "path": "#about",
+        "icon": "about-icon",
+        "hidden": false
+      },
+      {
+        "label":"Features",
+        "path": "#features"
+      },
+      {
+        "label": "Contact",
+        "path": "#contact"    }
+    ]
+      
+  }
+  
