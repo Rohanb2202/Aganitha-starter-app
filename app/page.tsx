@@ -2,6 +2,7 @@
 // page.tsx
 "use client";
 import { NavBar } from "./nav-bar";
+import {SessionProvider, useSession, signOut} from 'next-auth/react';
 import { useRef, useState, useEffect } from "react";
 import {
   ArrowRight,
@@ -21,6 +22,11 @@ import {
 import Link from "next/link";
 import nav from "../nav-config.json";
 
+
+const handleLogout = async() =>
+{
+  await signOut({callbackUrl:'/logout'});
+};
 // Hardcoded nav config data
 const navConfigData = {
   appName: "Aganitha",
@@ -422,7 +428,7 @@ export default function Home() {
         navItems={navConfigData.navigation}
         button={{
           label: "Login",
-          href: "/login",
+        onClick: handleLogout
         }}
         onNavigate={handleNavigate}
         appName={""}
