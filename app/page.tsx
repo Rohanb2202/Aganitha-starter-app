@@ -12,6 +12,11 @@ import {
   MapPin,
   Linkedin,
   Twitter,
+  HomeIcon,
+  InfoIcon,
+  ZapIcon,
+  Contact2Icon,
+  BellDotIcon,
 } from "lucide-react";
 import Link from "next/link";
 import nav from "../nav-config.json";
@@ -21,10 +26,11 @@ const navConfigData = {
   appName: "Aganitha",
   logoUrl: "https://www.aganitha.ai/wp-content/uploads/2023/05/aganitha-logo.png",
   navigation: [
-    { label: "Home", path: "#hero" },
-    { label: "About", path: "#about" },
-    { label: "Features", path: "#features" },
-    { label: "Contact", path: "#contact" },
+    { label: "Home", path: "#hero", icon: HomeIcon },
+    { label: "About", path: "#about", icon: InfoIcon },
+    { label: "Features", path: "#features", icon: ZapIcon},
+    { label: "Contact", path: "#contact", icon: Contact2Icon},
+    {id: "notification", path:"/login", icon: BellDotIcon}
   ],
 };
 
@@ -91,62 +97,13 @@ const Button = ({
   );
 };
 
-// Scroll Indicator Component
-const ScrollIndicator = () => {
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-    const handleScroll = () => {
-      const windowHeight = window.innerHeight;
-      const documentHeight = document.documentElement.scrollHeight;
-      const currentScrollY = window.scrollY;
-      setScrollProgress(currentScrollY / (documentHeight - windowHeight));
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  if (!isMounted) return null;
-
-  return (
-    <div className="fixed bottom-8 right-8 z-50 flex flex-col items-center">
-      <div className="w-1 h-20 bg-[var(--primary)]/30 rounded-full overflow-hidden">
-        <div
-          className="w-full bg-[var(--primary)] origin-top transition-all duration-300"
-          style={{ height: `${scrollProgress * 100}%` }}
-        />
-      </div>
-      <div className="mt-2">
-        <ChevronDown className="text-[var(--primary)] animate-scroll-bounce" />
-      </div>
-      <style jsx>{`
-        @keyframes scroll-bounce {
-          0%,
-          100% {
-            transform: translateY(0);
-            opacity: 0.7;
-          }
-          50% {
-            transform: translateY(-10px);
-            opacity: 1;
-          }
-        }
-        .animate-scroll-bounce {
-          animation: scroll-bounce 1.5s infinite ease-in-out;
-        }
-      `}</style>
-    </div>
-  );
-};
-
 // Navigation Dots Component
 const NavDots = ({ onNavigate }: { onNavigate: (path: string) => void }) => {
   const [isMounted, setIsMounted] = useState(false);
   const sections = [
     { id: "hero", label: "Home" },
     { id: "about", label: "About" },
+    { id: "themes", label: "Themes" },
     { id: "features", label: "Features" },
     { id: "contact", label: "Contact" },
   ];
@@ -157,16 +114,33 @@ const NavDots = ({ onNavigate }: { onNavigate: (path: string) => void }) => {
 
   if (!isMounted) return null;
 
+  const handleThemesClick = (path: string) => {
+    if (path === "#themes") {
+      // Special handling for themes - scroll to the theming section in about
+      const themingSection = document.querySelector("#about .theming-section");
+      if (themingSection) {
+        themingSection.scrollIntoView({ behavior: "smooth" });
+      } else {
+        // Fallback to about section if theming section not found
+        onNavigate("#about");
+      }
+    } else {
+      onNavigate(path);
+    }
+  };
+
   return (
     <div className="fixed right-4 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-4">
       {sections.map((section) => (
         <div key={section.id} className="group relative">
           <button
-            onClick={() => onNavigate(`#${section.id}`)}
+            onClick={() => handleThemesClick(`#${section.id}`)}
             className="w-3 h-3 bg-[var(--primary)]/50 rounded-full hover:bg-[var(--primary)] transition-all duration-300"
           />
           <span className="absolute right-6 top-1/2 -translate-y-1/2 bg-[var(--card)] text-[var(--foreground)] px-2 py-1 rounded-md text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-            {section.label}
+            {section.id === "themes" 
+              ? `${section.label} - Customize at tweakcn.com`
+              : section.label}
           </span>
         </div>
       ))}
@@ -408,8 +382,6 @@ export default function Home() {
     };
   }, []);
 
-
-
   const handleNavigate = (path: string) => {
     const sectionId = path.replace("#", "");
     const sectionRefs: {
@@ -433,7 +405,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen overflow-x-hidden">
-      <ScrollIndicator />
       <NavDots onNavigate={handleNavigate} />
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[var(--primary)]/20 rounded-full blur-3xl -z-10 animate-float-blob opacity-30" />
@@ -459,7 +430,7 @@ export default function Home() {
       <section
         id="hero"
         ref={heroRef}
-        className="min-h-screen pt-32 pbBlog-20 flex items-center justify-center relative overflow-hidden"
+        className="min-h-screen pt-32 pb-20 flex items-center justify-center relative overflow-hidden"
       >
         <div className="container mx-auto px-4 z-10">
           <div
@@ -764,7 +735,6 @@ export default function Home() {
                       desc: "Custom button to display on the right side of the nav bar.",
                       default: "undefined",
                     },
-                    
                   ].map((row, index) => (
                     <tr
                       key={index}
@@ -809,54 +779,23 @@ interface DropdownItem {
 }`}</code>
             </pre>
 
-            
-
-            <h4 className="text-xl font-medium mt-6 mb-2 text-[var(--foreground)] text-center">
+            <h4 id="theming-section" className="text-xl font-medium mt-6 mb-2 text-[var(--foreground)] text-center theming-section">
               Theming
             </h4>
             <p className="text-[var(--muted-foreground)] text-center mb-2">
-              Define these variables in your{" "}
+              To customize the colors, visit{" "}
+              <a
+                href="https://tweakcn.com/editor/theme"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--primary)] hover:underline"
+              >
+                tweakcn.com/editor/theme
+              </a>{" "}
+              to generate your theme template. Copy the generated CSS code and paste it into your{" "}
               <code className="bg-[var(--muted)] px-1 rounded">globals.css</code>{" "}
-              file to customize the colors:
+              file to apply it to your project.
             </p>
-            <pre className="bg-[var(--muted)] p-4 rounded-md text-[var(--foreground)] overflow-x-auto max-w-md mx-auto">
-              <code>{`/* globals.css */
-:root {
-  --background: oklch(0.97 0.01 314.78);
-  --foreground: oklch(0.37 0.03 259.73);
-  --primary: oklch(0.71 0.16 293.54);
-  --primary-foreground: oklch(1.00 0 0);
-}
-
-.dark {
-  --background: oklch(0.22 0.01 56.04);
-  --foreground: oklch(0.93 0.03 272.79);
-  --primary: oklch(0.79 0.12 295.75);
-  --primary-foreground: oklch(0.22 0.01 56.04);
-}`}</code>
-            </pre>
-
-            <h4 className="text-xl font-medium mt-6 mb-2 text-[var(--foreground)] text-center">
-              Notes
-            </h4>
-            <ul className="list-disc pl-6 text-[var(--muted-foreground)] max-w-md mx-auto">
-              <li>
-                Styling Restrictions: Customize colors only via the aforementioned {" "}
-                <code className="bg-[var(--muted)] px-1 rounded">colors variables names</code>{" "}
-                and manipulate via changing the colors on the globals.css file.
-              </li>
-              <li>
-                Responsive Design: Fully responsive with a mobile menu toggle
-                for smaller screens.
-              </li>
-              <li>
-                Dependencies: Ensure{" "}
-                <code className="bg-[var(--muted)] px-1 rounded">
-                  lucide-react
-                </code>{" "}
-                is installed for icons.
-              </li>
-            </ul>
           </div>
 
           <div

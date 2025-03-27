@@ -16,7 +16,8 @@ interface NavBarProps {
   onNavigate?: (path: string) => void;
   button?: {
     label: string;
-    href: string;
+    href?: string;
+    onClick?: () => void;
   };
 }
 
@@ -29,29 +30,31 @@ export function NavBar({
 }: NavBarProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
+  const [activePopup, setActivePopup] = useState<string | null>(null)
   const [isNavVisible, setIsNavVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const pathname = usePathname()
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+  const popupRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
 
-  // Fixed styles for the nav bar using CSS variables directly
   const containerStyle = `bg-[var(--background)]/80 backdrop-blur-md border-none fixed top-0 w-full z-50 transition-transform duration-300`;
-  const navItemStyle = `text-[var(--foreground)] hover:text-[var(--primary)] transition-colors duration-300 px-3 py-2 rounded-md text-sm font-medium`;
-  const navItemActiveStyle = `text-[var(--primary)] transition-colors duration-300 px-3 py-2 rounded-md text-sm font-medium`;
+  const navItemStyle = `text-[var(--foreground)] hover:text-[var(--primary)] transition-colors duration-300 px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2`;
+  const navItemActiveStyle = `text-[var(--primary)] transition-colors duration-300 px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2`;
+  const iconOnlyStyle = `text-[var(--foreground)] hover:text-[var(--primary)] transition-colors duration-300 p-2 rounded-md`;
+  const iconOnlyActiveStyle = `text-[var(--primary)] transition-colors duration-300 p-2 rounded-md`;
   const dropdownStyle = `absolute left-0 mt-1 w-48 rounded-md shadow-lg border border-[var(--foreground)] overflow-hidden bg-[var(--background)] transition-all duration-200`;
+  const popupStyle = `absolute right-0 mt-1 w-64 rounded-md shadow-lg border border-[var(--foreground)] overflow-hidden bg-[var(--background)] transition-all duration-200`;
   const dropdownItemStyle = `block px-4 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--primary)]/10 transition-colors duration-150`;
   const mobileMenuStyle = `md:hidden bg-[var(--background)]`;
-  const mobileMenuItemStyle = `block px-3 py-2 rounded-md text-base font-medium text-[var(--foreground)] hover:bg-[var(--primary)]/10 transition-colors duration-150`;
-  const mobileMenuItemActiveStyle = `block px-3 py-2 rounded-md text-base font-medium bg-[var(--primary)]/10 text-[var(--primary)]`;
+  const mobileMenuItemStyle = `block px-3 py-2 rounded-md text-base font-medium text-[var(--foreground)] hover:bg-[var(--primary)]/10 transition-colors duration-150 flex items-center gap-2`;
+  const mobileMenuItemActiveStyle = `block px-3 py-2 rounded-md text-base font-medium bg-[var(--primary)]/10 text-[var(--primary)] flex items-center gap-2`;
   const logoStyle = "h-8 w-auto";
   const appNameStyle = `ml-2 text-xl font-bold text-[var(--foreground)]`;
   const menuButtonStyle = `inline-flex items-center justify-center p-2 rounded-md text-[var(--foreground)] hover:bg-[var(--primary)]/10 transition-colors duration-150`;
-
-  // Fixed button style with Tailwind classes for hover effect
   const buttonStyle = `group inline-flex items-center px-3 py-2 bg-[var(--primary)] text-[var(--primary-foreground)] rounded-full hover:opacity-60 focus:opacity-60 active:opacity-60 transition-all duration-150 shadow-md cursor-pointer text-base font-medium`;
 
   const filteredNavItems = navItems.filter(item => 
-    item.label && 
+    (item.label || item.id) && 
     (item.type !== "auth-signin" && item.type !== "auth-signout") && 
     item.hidden !== true
   )
@@ -77,6 +80,8 @@ export function NavBar({
 
   useEffect(() => {
     setIsOpen(false)
+    setActiveDropdown(null)
+    setActivePopup(null)
   }, [pathname])
 
   useEffect(() => {
@@ -87,30 +92,42 @@ export function NavBar({
           setActiveDropdown(null)
         }
       }
+      if (activePopup) {
+        const popupRef = popupRefs.current[activePopup]
+        if (popupRef && !popupRef.contains(event.target as Node)) {
+          setActivePopup(null)
+        }
+      }
     }
 
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [activeDropdown])
+  }, [activeDropdown, activePopup])
 
-  const toggleDropdown = (label: string) => {
-    setActiveDropdown(activeDropdown === label ? null : label)
+  const toggleDropdown = (key: string) => {
+    setActiveDropdown(activeDropdown === key ? null : key)
+    setActivePopup(null)
   }
 
-  const renderDropdown = (item: NavItem) => {
-    if (!item.dropdown || item.dropdown.length === 0) return null
+  const togglePopup = (key: string) => {
+    setActivePopup(activePopup === key ? null : key)
+    setActiveDropdown(null)
+  }
+
+  const getItemKey = (item: NavItem) => item.label || item.id || '';
+
+  const renderDropdown = (items: DropdownItem[], parentKey: string) => {
+    if (!items || items.length === 0) return null
 
     return (
       <div
-        className={`${dropdownStyle} ${
-          activeDropdown === item.label ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
-        }`}
+        className={`${dropdownStyle} ${activeDropdown === parentKey ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
         ref={(el) => {
-          if (item.label) dropdownRefs.current[item.label] = el
+          if (parentKey) dropdownRefs.current[parentKey] = el
         }}
       >
         <div className="py-1">
-          {item.dropdown.map((dropdownItem: DropdownItem) => (
+          {items.map((dropdownItem: DropdownItem) => (
             <Link
               key={dropdownItem.path}
               href={dropdownItem.path}
@@ -128,14 +145,66 @@ export function NavBar({
     )
   }
 
+  const renderPopup = (key: string, popupContent?: React.ReactNode) => {
+    if (!popupContent) return null
+
+    return (
+      <div
+        className={`${popupStyle} ${activePopup === key ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
+        ref={(el) => {
+          if (key) popupRefs.current[key] = el
+        }}
+      >
+        <div className="p-4">
+          {popupContent}
+        </div>
+      </div>
+    )
+  }
+
   const renderNavItem = (item: NavItem) => {
     if (item.type === "auth-signin" || item.type === "auth-signout") return null
+
+    const IconComponent = item.icon
+    const hasIcon = !!IconComponent
+    const isIconOnly = hasIcon && !item.label
+    const itemKey = getItemKey(item)
+
+    if (isIconOnly) {
+      return (
+        <div className="relative">
+          {item.path ? (
+            <Link
+              href={item.path}
+              className={pathname === item.path ? iconOnlyActiveStyle : iconOnlyStyle}
+              onClick={() => {
+                if (item.popupContent) {
+                  togglePopup(itemKey)
+                } else if (onNavigate && item.path) {
+                  onNavigate(item.path) // Only call if path is defined
+                }
+              }}
+            >
+              {IconComponent && <IconComponent className="h-5 w-5" />}
+            </Link>
+          ) : (
+            <button
+              className={pathname === item.path ? iconOnlyActiveStyle : iconOnlyStyle}
+              onClick={() => togglePopup(itemKey)}
+            >
+              {IconComponent && <IconComponent className="h-5 w-5" />}
+            </button>
+          )}
+          {renderPopup(itemKey, item.popupContent)}
+        </div>
+      )
+    }
 
     if (item.dropdown && item.dropdown.length > 0) {
       return (
         <div
           className="relative"
-          onMouseEnter={() => item.dropdown && setActiveDropdown(item.label)}
+          onMouseEnter={() => item.dropdown && setActiveDropdown(itemKey)}
           onMouseLeave={() => item.dropdown && setActiveDropdown(null)}
         >
           {item.path ? (
@@ -145,27 +214,27 @@ export function NavBar({
               onClick={(e) => {
                 if (item.dropdown) {
                   e.preventDefault()
-                  toggleDropdown(item.label)
+                  toggleDropdown(itemKey)
+                } else if (onNavigate && item.path) {
+                  onNavigate(item.path) // Only call if path is defined
                 }
               }}
             >
-              <div className="flex items-center">
-                {item.label}
-                <ChevronDown className="ml-1 h-4 w-4" />
-              </div>
+              {IconComponent && <IconComponent className="h-5 w-5" />}
+              {item.label}
+              <ChevronDown className="ml-1 h-4 w-4" />
             </Link>
           ) : (
             <div
               className={pathname === item.path ? navItemActiveStyle : navItemStyle}
-              onClick={() => toggleDropdown(item.label)}
+              onClick={() => toggleDropdown(itemKey)}
             >
-              <div className="flex items-center">
-                {item.label}
-                <ChevronDown className="ml-1 h-4 w-4" />
-              </div>
+              {IconComponent && <IconComponent className="h-5 w-5" />}
+              {item.label}
+              <ChevronDown className="ml-1 h-4 w-4" />
             </div>
           )}
-          {renderDropdown(item)}
+          {renderDropdown(item.dropdown, itemKey)}
         </div>
       )
     }
@@ -174,7 +243,9 @@ export function NavBar({
       <Link
         href={item.path || "#"}
         className={pathname === item.path ? navItemActiveStyle : navItemStyle}
+        onClick={() => onNavigate && item.path && onNavigate(item.path)} // Only call if path is defined
       >
+        {IconComponent && <IconComponent className="h-5 w-5" />}
         {item.label}
       </Link>
     )
@@ -182,6 +253,46 @@ export function NavBar({
 
   const renderMobileNavItem = (item: NavItem) => {
     if (item.type === "auth-signin" || item.type === "auth-signout") return null
+
+    const IconComponent = item.icon
+    const hasIcon = !!IconComponent
+    const isIconOnly = hasIcon && !item.label
+    const itemKey = getItemKey(item)
+
+    if (isIconOnly) {
+      return (
+        <div className="space-y-1">
+          {item.path ? (
+            <Link
+              href={item.path}
+              className={pathname === item.path ? mobileMenuItemActiveStyle : mobileMenuItemStyle}
+              onClick={() => {
+                if (item.popupContent) {
+                  togglePopup(itemKey)
+                } else {
+                  setIsOpen(false)
+                  if (onNavigate && item.path) onNavigate(item.path) // Only call if path is defined
+                }
+              }}
+            >
+              {IconComponent && <IconComponent className="h-5 w-5" />}
+            </Link>
+          ) : (
+            <button
+              className={pathname === item.path ? mobileMenuItemActiveStyle : mobileMenuItemStyle}
+              onClick={() => togglePopup(itemKey)}
+            >
+              {IconComponent && <IconComponent className="h-5 w-5" />}
+            </button>
+          )}
+          {activePopup === itemKey && item.popupContent && (
+            <div className="pl-6 space-y-1 mt-1">
+              {item.popupContent}
+            </div>
+          )}
+        </div>
+      )
+    }
 
     if (item.dropdown && item.dropdown.length > 0) {
       return (
@@ -192,10 +303,11 @@ export function NavBar({
               className={pathname === item.path ? mobileMenuItemActiveStyle : mobileMenuItemStyle}
               onClick={(e) => {
                 e.preventDefault()
-                toggleDropdown(item.label)
+                toggleDropdown(itemKey)
               }}
             >
-              <div className="flex items-center justify-between">
+              {IconComponent && <IconComponent className="h-5 w-5" />}
+              <div className="flex items-center justify-between flex-1">
                 <div>{item.label}</div>
                 <ChevronDown className="h-4 w-4" />
               </div>
@@ -203,16 +315,17 @@ export function NavBar({
           ) : (
             <div
               className={pathname === item.path ? mobileMenuItemActiveStyle : mobileMenuItemStyle}
-              onClick={() => toggleDropdown(item.label)}
+              onClick={() => toggleDropdown(itemKey)}
             >
-              <div className="flex items-center justify-between">
+              {IconComponent && <IconComponent className="h-5 w-5" />}
+              <div className="flex items-center justify-between flex-1">
                 <div>{item.label}</div>
                 <ChevronDown className="h-4 w-4" />
               </div>
             </div>
           )}
 
-          {activeDropdown === item.label && (
+          {activeDropdown === itemKey && (
             <div className="pl-6 space-y-1 mt-1">
               {item.dropdown.map((dropdownItem) => (
                 <Link
@@ -236,9 +349,13 @@ export function NavBar({
     return (
       <Link
         href={item.path || "#"}
-        onClick={() => setIsOpen(false)}
+        onClick={() => {
+          setIsOpen(false)
+          if (onNavigate && item.path) onNavigate(item.path) // Only call if path is defined
+        }}
         className={pathname === item.path ? mobileMenuItemActiveStyle : mobileMenuItemStyle}
       >
+        {IconComponent && <IconComponent className="h-5 w-5" />}
         {item.label}
       </Link>
     )
@@ -253,14 +370,17 @@ export function NavBar({
     if (!button) return null;
 
     return (
-      <Link
-        href={button.href}
-        className={buttonStyle}
-        onMouseEnter={() => console.log("Hovering over Login button")} // Debug hover event
-      >
-        {button.label}
-        <ArrowRight className="ml-2 h-4 w-4" />
-      </Link>
+      button.href ? (
+        <Link href={button.href} className={buttonStyle} onClick={button.onClick}>
+          {button.label}
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Link>
+      ) : (
+        <button className={buttonStyle} onClick={button.onClick}>
+          {button.label}
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </button>
+      )
     );
   }
 
@@ -275,19 +395,9 @@ export function NavBar({
                   <div className="flex-shrink-0 flex items-center">
                     {logoUrl && (
                       isExternalUrl(logoUrl) ? (
-                        <img
-                          src={logoUrl}
-                          alt="Logo"
-                          className={logoStyle}
-                        />
+                        <img src={logoUrl} alt="Logo" className={logoStyle} />
                       ) : (
-                        <Image
-                          src={logoUrl}
-                          alt="Logo"
-                          width={32}
-                          height={32}
-                          className={logoStyle}
-                        />
+                        <Image src={logoUrl} alt="Logo" width={32} height={32} className={logoStyle} />
                       )
                     )}
                     {appName && <span className={appNameStyle}>{appName}</span>}
@@ -300,7 +410,9 @@ export function NavBar({
           <div className="flex items-center">
             <div className="hidden md:flex md:items-center md:space-x-4">
               {filteredNavItems.map((item, index) => (
-                <React.Fragment key={`${item.label}-${index}`}>{renderNavItem(item)}</React.Fragment>
+                <React.Fragment key={`${getItemKey(item)}-${index}`}>
+                  {renderNavItem(item)}
+                </React.Fragment>
               ))}
               {button && (
                 <div className="flex items-center ml-4">
@@ -315,7 +427,7 @@ export function NavBar({
               >
                 <span className="sr-only">Open main menu</span>
                 <svg
-                  className={`${isOpen ? "hidden" : "block"} h-6 w-6`}
+                  className={`${isOpen ? "hidden" : "block"} cursor-pointer h-6 w-6`}
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -340,7 +452,9 @@ export function NavBar({
       <div className={`${mobileMenuStyle} ${isOpen ? "block" : "hidden"}`}>
         <div className="px-2 pt-2 pb-3 space-y-1">
           {filteredNavItems.map((item, index) => (
-            <React.Fragment key={`${item.label}-${index}`}>{renderMobileNavItem(item)}</React.Fragment>
+            <React.Fragment key={`${getItemKey(item)}-${index}`}>
+              {renderMobileNavItem(item)}
+            </React.Fragment>
           ))}
           {button && (
             <div className="space-y-1">
